@@ -188,5 +188,26 @@
     "createdAt": "2026-03-04T08:17:19.372Z",
     "publishedMediaId": null,
     "error": null
+  },
+  {
+    "id": "mmbrk8kxy2cuzy",
+    "accountId": "1772561063178",
+    "platform": "instagram",
+    "mediaType": "REELS",
+    "mediaUrl": "https://res.cloudinary.com/dbilmziyw/video/upload/v1772612245/xdfabwrhxjmxyheqzyer.mp4",
+    "caption": "🎬 Anime Details\n\n* Anime Name: The Fable\n* Anime Episodes: 25\n* Anime Seasons: 1\n* Anime MAL Rating: 7.6+ ⭐\n* Anime Short Description: A legendary hitman known as “The Fable” is ordered to live as a normal citizen for a year without killing anyone, leading to intense and often hilarious situations.\n* Is it ongoing? (Yes/No): Yes\n* Future updates or interesting news: Anime premiered in 2024 and adapts the popular crime manga with more story arcs expected.\n\n📚 Manga Details\n\n* Manga Name: The Fable\n* Volumes: 22 (original series)\n* Rating: 8.2+ ⭐\n* Future updates: Sequel manga The Fable: The Second Contact continues the story.\n\n#TheFable #CrimeAnime #SeinenManga #AnimeUpdates #MangaFans\n",
+    "coverUrl": null,
+    "shareToFeed": true,
+    "collaborators": [],
+    "audioName": "",
+    "thumbOffset": null,
+    "locationId": "",
+    "userTags": [],
+    "altText": "",
+    "scheduledAt": "2026-03-13T02:30:00.000Z",
+    "status": "pending",
+    "createdAt": "2026-03-04T08:17:23.313Z",
+    "publishedMediaId": null,
+    "error": null
   }
 ]
