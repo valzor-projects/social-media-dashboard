@@ -125,5 +125,26 @@
     "createdAt": "2026-03-04T08:17:05.855Z",
     "publishedMediaId": null,
     "error": null
+  },
+  {
+    "id": "mmbrjyp7vno73k",
+    "accountId": "1772561063178",
+    "platform": "instagram",
+    "mediaType": "REELS",
+    "mediaUrl": "https://res.cloudinary.com/dbilmziyw/video/upload/v1772612232/vzcwtf1rn8f5xhzeivnb.mp4",
+    "caption": "🎬 Anime Details\n\n* Anime Name: The Daily Life of the Immortal King\n* Anime Episodes: 50+\n* Anime Seasons: 4\n* Anime MAL Rating: 7.3+ ⭐\n* Anime Short Description: Wang Ling is an overpowered cultivation genius who just wants a normal school life, but his immense power constantly causes chaotic and hilarious situations.\n* Is it ongoing? (Yes/No): Yes\n* Future updates or interesting news: New seasons continue releasing with growing international popularity among donghua fans.\n\n📚 Manga / Novel Details\n\n* Manga Name: The Daily Life of the Immortal King\n* Volumes: 20+ (adaptations & web chapters)\n* Rating: 7.5+ ⭐\n* Future updates: The original web novel and manhua adaptations continue expanding the story.\n\n#DailyLifeOfTheImmortalKing #Donghua #CultivationAnime #WangLing #AnimeFans\n",
+    "coverUrl": null,
+    "shareToFeed": true,
+    "collaborators": [],
+    "audioName": "",
+    "thumbOffset": null,
+    "locationId": "",
+    "userTags": [],
+    "altText": "",
+    "scheduledAt": "2026-03-10T02:30:00.000Z",
+    "status": "pending",
+    "createdAt": "2026-03-04T08:17:10.507Z",
+    "publishedMediaId": null,
+    "error": null
   }
 ]
