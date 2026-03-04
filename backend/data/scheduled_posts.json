@@ -167,5 +167,26 @@
     "createdAt": "2026-03-04T08:17:14.405Z",
     "publishedMediaId": null,
     "error": null
+  },
+  {
+    "id": "mmbrk5jgr41qi4",
+    "accountId": "1772561063178",
+    "platform": "instagram",
+    "mediaType": "REELS",
+    "mediaUrl": "https://res.cloudinary.com/dbilmziyw/video/upload/v1772612240/umkxwume0fdcqks06spc.mp4",
+    "caption": "🎬 Anime Details\n\n* Anime Name: Hunter x Hunter\n* Anime Episodes: 148 (2011 version)\n* Anime Seasons: 6 (categorized arcs)\n* Anime MAL Rating: 9.0+ ⭐\n* Anime Short Description: Gon Freecss sets out to become a Hunter and find his father, facing deadly exams, powerful enemies, and intense Nen battles.\n* Is it ongoing? (Yes/No): No (anime paused)\n* Future updates or interesting news: No continuation announced; manga activity influences any potential return.\n\n📚 Manga Details\n\n* Manga Name: Hunter x Hunter\n* Volumes: 37+\n* Rating: 8.7+ ⭐\n* Future updates: Manga resumed intermittently; author Yoshihiro Togashi continues releasing chapters irregularly due to health breaks.\n\n#HunterXHunter #HxH #GonFreecss #AnimeFans #MangaUpdates\n",
+    "coverUrl": null,
+    "shareToFeed": true,
+    "collaborators": [],
+    "audioName": "",
+    "thumbOffset": null,
+    "locationId": "",
+    "userTags": [],
+    "altText": "",
+    "scheduledAt": "2026-03-12T02:30:00.000Z",
+    "status": "pending",
+    "createdAt": "2026-03-04T08:17:19.372Z",
+    "publishedMediaId": null,
+    "error": null
   }
 ]
