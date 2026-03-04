@@ -104,5 +104,26 @@
     "createdAt": "2026-03-03T21:07:11.408Z",
     "publishedMediaId": null,
     "error": null
+  },
+  {
+    "id": "mmbrjv3ykze1sd",
+    "accountId": "1772561063178",
+    "platform": "instagram",
+    "mediaType": "REELS",
+    "mediaUrl": "https://res.cloudinary.com/dbilmziyw/video/upload/v1772612227/gjjashz79w7yjt9saret.mp4",
+    "caption": "🎬 Anime Details\n\n* Anime Name: Assassination Classroom\n* Anime Episodes: 47\n* Anime Seasons: 2\n* Anime MAL Rating: 8.1+ ⭐\n* Anime Short Description: Class 3-E must assassinate their super-powered teacher, Koro-sensei, before he destroys Earth—while he helps them grow academically and personally.\n* Is it ongoing? (Yes/No): No\n* Future updates or interesting news: Anime concluded in 2016; continues to trend for its emotional finale and character arcs.\n\n📚 Manga Details\n\n* Manga Name: Assassination Classroom\n* Volumes: 21\n* Rating: 8.2+ ⭐\n* Future updates: Manga ended in 2016; anniversary projects and spin-offs remain fan favorites.\n\n#AssassinationClassroom #KoroSensei #AnimeCommunity #ShonenJump #MangaFans\n",
+    "coverUrl": null,
+    "shareToFeed": true,
+    "collaborators": [],
+    "audioName": "",
+    "thumbOffset": null,
+    "locationId": "",
+    "userTags": [],
+    "altText": "",
+    "scheduledAt": "2026-03-09T02:30:00.000Z",
+    "status": "pending",
+    "createdAt": "2026-03-04T08:17:05.855Z",
+    "publishedMediaId": null,
+    "error": null
   }
 ]
