@@ -335,10 +335,10 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-08T02:30:00.000Z",
-    "status": "failed",
+    "status": "pending",
     "createdAt": "2026-03-07T20:19:12.117Z",
     "publishedMediaId": null,
-    "error": "Account not found: 1772914509942"
+    "error": null
   },
   {
     "id": "mmgroasyfb31ml",
