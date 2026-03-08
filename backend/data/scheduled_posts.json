@@ -103,10 +103,11 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-08T02:30:00.000Z",
-    "status": "pending",
+    "status": "published",
     "createdAt": "2026-03-03T21:07:11.408Z",
-    "publishedMediaId": null,
-    "error": null
+    "publishedMediaId": "18074033108630840",
+    "error": null,
+    "publishedAt": "2026-03-08T04:07:18.416Z"
   },
   {
     "id": "mmbrjv3ykze1sd",
@@ -334,10 +335,10 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-08T02:30:00.000Z",
-    "status": "pending",
+    "status": "failed",
     "createdAt": "2026-03-07T20:19:12.117Z",
     "publishedMediaId": null,
-    "error": null
+    "error": "Account not found: 1772914509942"
   },
   {
     "id": "mmgroasyfb31ml",
