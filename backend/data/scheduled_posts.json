@@ -335,10 +335,11 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-08T02:30:00.000Z",
-    "status": "pending",
+    "status": "published",
     "createdAt": "2026-03-07T20:19:12.117Z",
-    "publishedMediaId": null,
-    "error": null
+    "publishedMediaId": "17976427307997937",
+    "error": null,
+    "publishedAt": "2026-03-08T13:57:38.506Z"
   },
   {
     "id": "mmgroasyfb31ml",
