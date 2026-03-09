@@ -125,10 +125,11 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-09T02:30:00.000Z",
-    "status": "pending",
+    "status": "published",
     "createdAt": "2026-03-04T08:17:05.855Z",
-    "publishedMediaId": null,
-    "error": null
+    "publishedMediaId": "18318399664267235",
+    "error": null,
+    "publishedAt": "2026-03-09T02:35:01.810Z"
   },
   {
     "id": "mmbrjyp7vno73k",
@@ -357,10 +358,11 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-09T02:30:00.000Z",
-    "status": "pending",
+    "status": "published",
     "createdAt": "2026-03-07T20:19:23.698Z",
-    "publishedMediaId": null,
-    "error": null
+    "publishedMediaId": "17940184740153379",
+    "error": null,
+    "publishedAt": "2026-03-09T02:35:34.742Z"
   },
   {
     "id": "mmgroirleqj3er",
