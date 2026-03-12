@@ -191,10 +191,11 @@
     "userTags": [],
     "altText": "",
     "scheduledAt": "2026-03-12T02:30:00.000Z",
-    "status": "pending",
+    "status": "published",
     "createdAt": "2026-03-04T08:17:19.372Z",
-    "publishedMediaId": null,
-    "error": null
+    "publishedMediaId": "18328253251247679",
+    "error": null,
+    "publishedAt": "2026-03-12T03:54:43.616Z"
   },
   {
     "id": "mmbrk8kxy2cuzy",
