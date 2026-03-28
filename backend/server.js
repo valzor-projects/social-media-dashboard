@@ -62,56 +62,72 @@ async function writeJSON(filePath, data) {
 
 // ─── GitHub Sync (for GitHub Actions scheduling) ─────────────────────────────
 
-async function syncScheduledPostsToGitHub() {
+// Push a single file to GitHub (create or update). Returns true on success.
+async function pushFileToGitHub(gh, repoPath, jsonData, commitMessage) {
+    const repo = gh.repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+    const branch = gh.branch || 'main';
+    const content = Buffer.from(JSON.stringify(jsonData, null, 2)).toString('base64');
+    const headers = { Authorization: `token ${gh.token}`, 'Content-Type': 'application/json', 'User-Agent': 'SocialMediaDashboard' };
+
+    // Fetch current SHA so GitHub accepts the update
+    let sha;
+    try {
+        const r = await fetch(`https://api.github.com/repos/${repo}/contents/${repoPath}?ref=${branch}`, { headers });
+        if (r.ok) sha = (await r.json()).sha;
+    } catch { }
+
+    const body = { message: commitMessage, content, branch };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${repoPath}`, {
+        method: 'PUT', headers, body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(`GitHub PUT ${repoPath}: ${err.message}`);
+    }
+    return true;
+}
+
+// Sync ALL data files to GitHub in one pass.
+// accounts.json is pushed with accessToken stripped (tokens stay in the encrypted secret).
+async function syncAllDataToGitHub() {
     try {
         const keys = await readJSON(API_KEYS_FILE) || {};
         const gh = keys.github;
-        if (!gh?.token || !gh?.repo) return; // Not configured
+        if (!gh?.token || !gh?.repo) return;
 
-        // Normalize repo: accept full URL or owner/repo format
-        const repo = gh.repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+        const [posts, rawAccounts] = await Promise.all([
+            readJSON(SCHEDULED_POSTS_FILE) || [],
+            readJSON(ACCOUNTS_FILE) || [],
+        ]);
 
-        const posts = await readJSON(SCHEDULED_POSTS_FILE) || [];
-        const content = Buffer.from(JSON.stringify(posts, null, 2)).toString('base64');
-        const filePath = 'backend/data/scheduled_posts.json';
-        const branch = gh.branch || 'main';
-
-        // Get current file SHA (needed for updates)
-        let sha;
-        try {
-            const res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`, {
-                headers: { Authorization: `token ${gh.token}`, 'User-Agent': 'SocialMediaDashboard' }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                sha = data.sha;
-            }
-        } catch { }
-
-        // Create or update file
-        const body = { message: '📅 Sync scheduled posts', content, branch };
-        if (sha) body.sha = sha;
-
-        const res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
-            method: 'PUT',
-            headers: {
-                Authorization: `token ${gh.token}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'SocialMediaDashboard'
-            },
-            body: JSON.stringify(body),
+        // Strip sensitive token fields before committing accounts to a public/private repo
+        const safeAccounts = rawAccounts.map(a => {
+            const copy = { ...a };
+            delete copy.accessToken;
+            return copy;
         });
 
-        if (res.ok) {
-            console.log('  ☁️ Synced scheduled posts to GitHub');
-        } else {
-            const err = await res.json();
-            console.error('  ☁️ GitHub sync error:', err.message);
-        }
+        const files = [
+            { path: 'backend/data/scheduled_posts.json', data: posts,        label: 'scheduled posts' },
+            { path: 'backend/data/accounts.json',        data: safeAccounts, label: 'accounts'        },
+        ];
+
+        const results = await Promise.allSettled(
+            files.map(f => pushFileToGitHub(gh, f.path, f.data, `☁️ Sync ${f.label}`))
+        );
+
+        results.forEach((r, i) => {
+            if (r.status === 'fulfilled') console.log(`  ☁️ Synced ${files[i].label} to GitHub`);
+            else console.error(`  ☁️ GitHub sync error (${files[i].label}):`, r.reason?.message);
+        });
     } catch (err) {
-        console.error('  ☁️ GitHub sync error:', err.message);
+        console.error('  ☁️ syncAllDataToGitHub error:', err.message);
     }
 }
+
 
 async function pullScheduledPostsFromGitHub() {
     try {
@@ -212,6 +228,12 @@ async function syncAccountsSecretToGitHub() {
     }
 }
 
+// Push all data files + refresh encrypted secret in one shot.
+// Use this everywhere instead of calling the two functions separately.
+async function syncEverythingToGitHub() {
+    await Promise.allSettled([syncAllDataToGitHub(), syncAccountsSecretToGitHub()]);
+}
+
 async function getAPIKey() {
     const keys = await readJSON(API_KEYS_FILE);
     return keys?.youtube || '';
@@ -259,6 +281,42 @@ async function exchangeForLongLivedToken(shortToken, appSecret) {
         tokenType: data.token_type || 'bearer',
         expiresIn: data.expires_in || 5184000, // ~60 days
     };
+}
+
+// Auto-refresh Instagram long-lived tokens that expire within 15 days
+async function autoRefreshInstagramTokens() {
+    try {
+        const accounts = await readJSON(ACCOUNTS_FILE) || [];
+        const igAccounts = accounts.filter(a => a.platform === 'instagram' && a.accessToken && a.tokenExpiresAt);
+        if (igAccounts.length === 0) return;
+
+        const fifteenDaysMs = 15 * 24 * 60 * 60 * 1000;
+        const soon = new Date(Date.now() + fifteenDaysMs);
+        const toRefresh = igAccounts.filter(a => new Date(a.tokenExpiresAt) <= soon);
+
+        if (toRefresh.length === 0) return;
+
+        console.log(`\n  🔑 Auto-refreshing ${toRefresh.length} Instagram token(s) expiring within 15 days...`);
+        let changed = false;
+        for (const account of toRefresh) {
+            try {
+                const refreshed = await refreshLongLivedToken(account.accessToken);
+                account.accessToken = refreshed.accessToken;
+                account.tokenExpiresAt = new Date(Date.now() + (refreshed.expiresIn || 5184000) * 1000).toISOString();
+                console.log(`  ✅ Token refreshed for @${account.username} — expires ${account.tokenExpiresAt}`);
+                changed = true;
+            } catch (err) {
+                console.error(`  ❌ Failed to refresh token for @${account.username}: ${err.message}`);
+            }
+        }
+
+        if (changed) {
+            await writeJSON(ACCOUNTS_FILE, accounts);
+            syncEverythingToGitHub().catch(() => { });
+        }
+    } catch (err) {
+        console.error('  ❌ autoRefreshInstagramTokens error:', err.message);
+    }
 }
 
 // Refresh a long-lived token for another 60 days
@@ -1096,7 +1154,7 @@ app.post('/api/accounts', async (req, res) => {
 
         accounts.push(newAccount);
         await writeJSON(ACCOUNTS_FILE, accounts);
-        syncAccountsSecretToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
 
         res.json({ success: true, account: newAccount });
     } catch (err) {
@@ -1168,7 +1226,7 @@ app.post('/api/accounts/instagram', async (req, res) => {
 
         accounts.push(newAccount);
         await writeJSON(ACCOUNTS_FILE, accounts);
-        syncAccountsSecretToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
 
         // Mask token in response
         const safeAccount = { ...newAccount };
@@ -1194,7 +1252,7 @@ app.post('/api/accounts/:id/refresh-ig-token', async (req, res) => {
         account.accessToken = refreshed.accessToken;
         account.tokenExpiresAt = new Date(Date.now() + (refreshed.expiresIn || 5184000) * 1000).toISOString();
         await writeJSON(ACCOUNTS_FILE, accounts);
-        syncAccountsSecretToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
         res.json({ success: true, message: 'Token refreshed for another 60 days', expiresAt: account.tokenExpiresAt });
     } catch (err) {
         res.status(400).json({ success: false, message: err.message });
@@ -1209,7 +1267,7 @@ app.delete('/api/accounts/:id', async (req, res) => {
         if (!account) return res.status(404).json({ success: false, message: 'Not found' });
         const filtered = accounts.filter(a => a.id !== req.params.id);
         await writeJSON(ACCOUNTS_FILE, filtered);
-        syncAccountsSecretToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
 
         // Clean caches
         const cache = await readJSON(VIDEOS_CACHE_FILE);
@@ -1813,7 +1871,7 @@ app.post('/api/scheduled-posts', async (req, res) => {
         await writeJSON(SCHEDULED_POSTS_FILE, posts);
 
         // Sync to GitHub (async, don't block response)
-        syncScheduledPostsToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
 
         res.json({ success: true, post });
     } catch (err) {
@@ -1839,8 +1897,21 @@ app.put('/api/scheduled-posts/:id', async (req, res) => {
         if (req.body.scheduledAt) posts[idx].scheduledAt = new Date(req.body.scheduledAt).toISOString();
 
         await writeJSON(SCHEDULED_POSTS_FILE, posts);
-        syncScheduledPostsToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
         res.json({ success: true, post: posts[idx] });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Delete ALL scheduled posts (skips any currently publishing)
+app.delete('/api/scheduled-posts', async (_req, res) => {
+    try {
+        let posts = await readJSON(SCHEDULED_POSTS_FILE) || [];
+        const publishing = posts.filter(p => p.status === 'publishing');
+        await writeJSON(SCHEDULED_POSTS_FILE, publishing); // keep only in-flight ones
+        syncEverythingToGitHub().catch(() => { });
+        res.json({ success: true, deleted: posts.length - publishing.length, kept: publishing.length });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -1857,7 +1928,7 @@ app.delete('/api/scheduled-posts/:id', async (req, res) => {
         }
         posts = posts.filter(p => p.id !== req.params.id);
         await writeJSON(SCHEDULED_POSTS_FILE, posts);
-        syncScheduledPostsToGitHub().catch(() => { });
+        syncEverythingToGitHub().catch(() => { });
         res.json({ success: true, message: 'Scheduled post deleted' });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
@@ -1995,8 +2066,8 @@ app.post('/api/process-scheduled', async (req, res) => {
 // GitHub sync test endpoint
 app.post('/api/github-sync', async (req, res) => {
     try {
-        await syncScheduledPostsToGitHub();
-        res.json({ success: true, message: 'Synced to GitHub' });
+        await syncEverythingToGitHub();
+        res.json({ success: true, message: 'Synced all data files to GitHub' });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
@@ -2034,10 +2105,15 @@ initializeData().then(async () => {
         }
     }, 60000);
 
+    // Check Instagram token expiry once on startup, then every 24 hours
+    autoRefreshInstagramTokens();
+    setInterval(autoRefreshInstagramTokens, 24 * 60 * 60 * 1000);
+
     app.listen(PORT, () => {
         console.log(`\n  Social Media Analytics API Server`);
         console.log(`  Running on http://localhost:${PORT}`);
         console.log(`  YouTube + Instagram analytics ready`);
-        console.log(`  📅 Scheduler active (checks every 60s)\n`);
+        console.log(`  📅 Scheduler active (checks every 60s)`);
+        console.log(`  🔑 Instagram token auto-refresh active (checks every 24h)\n`);
     });
 });

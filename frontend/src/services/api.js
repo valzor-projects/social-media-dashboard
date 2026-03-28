@@ -56,6 +56,7 @@ export const api = {
     createScheduledPost: (data) => request('/scheduled-posts', { method: 'POST', body: JSON.stringify(data) }),
     updateScheduledPost: (id, data) => request(`/scheduled-posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteScheduledPost: (id) => request(`/scheduled-posts/${id}`, { method: 'DELETE' }),
+    deleteAllScheduledPosts: () => request('/scheduled-posts', { method: 'DELETE' }),
     processScheduled: () => request('/process-scheduled'),
 
     // GitHub Sync

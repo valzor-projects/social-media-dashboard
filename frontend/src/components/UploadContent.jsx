@@ -4,7 +4,8 @@ import {
     MenuItem, FormControl, InputLabel, Chip, LinearProgress, Avatar,
     Switch, FormControlLabel, CircularProgress, Alert, Stepper, Step,
     StepLabel, IconButton, Divider, Tooltip, InputAdornment,
-    Tabs, Tab, Badge, Collapse,
+    Tabs, Tab, Badge, Collapse, Dialog, DialogTitle, DialogContent, DialogActions,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
 } from '@mui/material';
 import {
     CloudUpload, Instagram, Photo, Movie, ViewCarousel, AutoStories,
@@ -13,7 +14,7 @@ import {
     PersonAdd, LocationOn, AlternateEmail, MusicNote, PhotoCamera,
     Timer, Science, CalendarMonth, AccessTime,
     DriveFolderUpload, PlaylistAdd, SkipNext, Stop, Pause,
-    ContentCopy, DragIndicator, EditNote,
+    ContentCopy, DragIndicator, EditNote, DeleteSweep, OpenInNew,
 } from '@mui/icons-material';
 import { api } from '../services/api';
 
@@ -54,6 +55,11 @@ export default function UploadContent({ accounts, showToast }) {
     const [scheduledPosts, setScheduledPosts] = useState([]);
     const [showScheduled, setShowScheduled] = useState(false);
     const [loadingScheduled, setLoadingScheduled] = useState(false);
+
+    // Delete confirmation for published posts
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+    const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
 
     // Edit scheduled post state
     const [editingPostId, setEditingPostId] = useState(null);
@@ -632,10 +638,24 @@ export default function UploadContent({ accounts, showToast }) {
     const handleDeleteScheduled = async (id) => {
         try {
             await api.deleteScheduledPost(id);
-            showToast('Scheduled post deleted', 'success');
+            showToast('Post removed from records', 'success');
+            setConfirmDeleteId(null);
             loadScheduledPosts();
         } catch (err) {
             showToast('Delete failed: ' + err.message, 'error');
+            setConfirmDeleteId(null);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        try {
+            const res = await api.deleteAllScheduledPosts();
+            showToast(`Deleted ${res.deleted} post(s) & synced to GitHub`, 'success');
+            setConfirmDeleteAll(false);
+            loadScheduledPosts();
+        } catch (err) {
+            showToast('Delete all failed: ' + err.message, 'error');
+            setConfirmDeleteAll(false);
         }
     };
 
@@ -699,6 +719,7 @@ export default function UploadContent({ accounts, showToast }) {
     const isVideo = contentType === 'REELS' || (contentType === 'STORIES' && file?.type?.startsWith('video/'));
 
     return (
+        <>
         <Box>
             {/* Header */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
@@ -1596,129 +1617,294 @@ export default function UploadContent({ accounts, showToast }) {
                 </Box>
             )}
 
-            {/* Scheduled Posts */}
-            {scheduledPosts.length > 0 && (
-                <Card sx={{ mt: 3 }}>
-                    <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                <CalendarMonth sx={{ verticalAlign: 'middle', mr: 1, color: '#F58529' }} />
-                                Scheduled Posts ({scheduledPosts.filter(p => p.status === 'pending').length} pending)
-                            </Typography>
-                            <Button size="small" onClick={loadScheduledPosts} startIcon={<Schedule />}
-                                sx={{ color: 'text.secondary' }}>Refresh</Button>
-                        </Box>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {scheduledPosts.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).map(post => {
-                                const acct = igAccounts.find(a => a.id === post.accountId);
-                                const typeInfo = CONTENT_TYPES.find(t => t.value === post.mediaType);
-                                const isPast = new Date(post.scheduledAt) < new Date();
-                                const isEditing = editingPostId === post.id;
-                                const canEdit = post.status === 'pending' || post.status === 'scheduled';
-                                return (
-                                    <Box key={post.id} sx={{
-                                        borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)',
-                                        border: isEditing ? '1px solid #F58529' : '1px solid rgba(255,255,255,0.06)',
-                                        transition: 'all 0.2s',
-                                    }}>
-                                        {/* Row display */}
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5 }}>
-                                            <Box sx={{ color: typeInfo?.color || '#888', flexShrink: 0 }}>
-                                                {typeInfo?.icon || <Photo />}
-                                            </Box>
-                                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                                                <Typography variant="body2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {post.caption || '(no caption)'}
-                                                </Typography>
-                                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                                    {acct?.username ? `@${acct.username}` : post.accountId} · {typeInfo?.label} · {new Date(post.scheduledAt).toLocaleString()}
-                                                </Typography>
-                                            </Box>
-                                            <Chip
-                                                size="small"
-                                                label={post.status === 'published' ? 'Published' : post.status === 'failed' ? 'Failed' : post.status === 'publishing' ? 'Publishing...' : 'Pending'}
-                                                sx={{
-                                                    fontWeight: 600, fontSize: 11,
-                                                    bgcolor: post.status === 'published' ? '#4CAF5022' : post.status === 'failed' ? '#f4433622' : post.status === 'publishing' ? '#FF980022' : '#F5852922',
-                                                    color: post.status === 'published' ? '#4CAF50' : post.status === 'failed' ? '#f44336' : post.status === 'publishing' ? '#FF9800' : '#F58529',
-                                                }}
-                                            />
-                                            {canEdit && !isEditing && (
-                                                <Tooltip title="Edit post">
-                                                    <IconButton size="small" onClick={() => startEditPost(post)}
-                                                        sx={{ color: 'text.secondary', '&:hover': { color: '#F58529' } }}>
-                                                        <EditNote fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                            {canEdit && (
-                                                <IconButton size="small" onClick={() => handleDeleteScheduled(post.id)}
-                                                    sx={{ color: 'text.secondary', '&:hover': { color: '#f44336' } }}>
-                                                    <Delete fontSize="small" />
-                                                </IconButton>
-                                            )}
-                                            {post.status === 'failed' && post.error && (
-                                                <Tooltip title={post.error}>
-                                                    <ErrorIcon sx={{ color: '#f44336', fontSize: 18 }} />
-                                                </Tooltip>
-                                            )}
-                                        </Box>
+            {/* Scheduled Posts Table */}
+            {scheduledPosts.length > 0 && (() => {
+                const counts = {
+                    all: scheduledPosts.length,
+                    pending: scheduledPosts.filter(p => p.status === 'pending').length,
+                    publishing: scheduledPosts.filter(p => p.status === 'publishing').length,
+                    published: scheduledPosts.filter(p => p.status === 'published').length,
+                    failed: scheduledPosts.filter(p => p.status === 'failed').length,
+                };
+                const filtered = scheduledPosts
+                    .filter(p => statusFilter === 'all' || p.status === statusFilter)
+                    .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
 
-                                        {/* Inline Edit Panel */}
-                                        {isEditing && (
-                                            <Box sx={{ px: 2, pb: 2, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                <TextField
-                                                    fullWidth multiline rows={3} size="small"
-                                                    value={editCaption}
-                                                    onChange={e => setEditCaption(e.target.value)}
-                                                    label="Caption" sx={{ mb: 2 }}
-                                                    helperText={`${editCaption.length}/2,200 characters`}
-                                                />
-                                                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-                                                    <TextField
-                                                        type="date" value={editDate}
-                                                        onChange={e => setEditDate(e.target.value)}
-                                                        label="Scheduled Date" size="small"
-                                                        slotProps={{ inputLabel: { shrink: true }, input: { inputProps: { min: new Date().toISOString().split('T')[0] } } }}
-                                                        sx={{ minWidth: 180 }}
-                                                    />
-                                                    <TextField
-                                                        type="time" value={editTime}
-                                                        onChange={e => setEditTime(e.target.value)}
-                                                        label="Scheduled Time" size="small"
-                                                        slotProps={{ inputLabel: { shrink: true } }}
-                                                        sx={{ minWidth: 150 }}
-                                                    />
-                                                    {editDate && editTime && (
-                                                        <Chip
-                                                            icon={<CalendarMonth sx={{ fontSize: 16 }} />}
-                                                            label={new Date(`${editDate}T${editTime}`).toLocaleString()}
-                                                            color="warning" variant="outlined"
-                                                            sx={{ alignSelf: 'center' }}
-                                                        />
+                const cellSx = { borderColor: 'rgba(255,255,255,0.06)', py: 1, px: 1.5 };
+                const headCellSx = { ...cellSx, fontWeight: 700, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5, bgcolor: 'rgba(255,255,255,0.03)' };
+
+                const statusChip = (status) => {
+                    const map = {
+                        published:  { label: 'Published',   bg: '#4CAF5022', color: '#4CAF50' },
+                        failed:     { label: 'Failed',      bg: '#f4433622', color: '#f44336' },
+                        publishing: { label: 'Publishing…', bg: '#FF980022', color: '#FF9800' },
+                        pending:    { label: 'Pending',     bg: '#F5852922', color: '#F58529' },
+                    };
+                    const s = map[status] || map.pending;
+                    return <Chip size="small" label={s.label} sx={{ fontWeight: 600, fontSize: 11, bgcolor: s.bg, color: s.color }} />;
+                };
+
+                const fmtDate = (iso) => iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+
+                return (
+                    <Card sx={{ mt: 3 }}>
+                        <CardContent sx={{ pb: '12px !important' }}>
+                            {/* Header */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <CalendarMonth sx={{ color: '#F58529' }} />
+                                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Scheduled Posts</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Button size="small" onClick={loadScheduledPosts} startIcon={<Schedule />}
+                                        sx={{ color: 'text.secondary' }}>Refresh</Button>
+                                    <Button size="small" variant="outlined" color="error"
+                                        startIcon={<DeleteSweep />}
+                                        onClick={() => setConfirmDeleteAll(true)}
+                                        sx={{ borderColor: '#f4433644', color: '#f44336', '&:hover': { borderColor: '#f44336', bgcolor: '#f4433611' } }}>
+                                        Delete All
+                                    </Button>
+                                </Box>
+                            </Box>
+
+                            {/* Stats bar */}
+                            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                                {[
+                                    { label: 'Total',      value: counts.all,       color: '#aaa',     filter: 'all' },
+                                    { label: 'Pending',    value: counts.pending,    color: '#F58529',  filter: 'pending' },
+                                    { label: 'Publishing', value: counts.publishing, color: '#FF9800',  filter: 'publishing' },
+                                    { label: 'Published',  value: counts.published,  color: '#4CAF50',  filter: 'published' },
+                                    { label: 'Failed',     value: counts.failed,     color: '#f44336',  filter: 'failed' },
+                                ].map(s => (
+                                    <Chip key={s.filter} size="small"
+                                        label={`${s.label}: ${s.value}`}
+                                        onClick={() => setStatusFilter(s.filter)}
+                                        sx={{
+                                            fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                                            bgcolor: statusFilter === s.filter ? `${s.color}22` : 'rgba(255,255,255,0.05)',
+                                            color: statusFilter === s.filter ? s.color : 'text.secondary',
+                                            border: statusFilter === s.filter ? `1px solid ${s.color}55` : '1px solid transparent',
+                                        }}
+                                    />
+                                ))}
+                            </Box>
+
+                            {/* Table */}
+                            <TableContainer sx={{ borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={headCellSx}>#</TableCell>
+                                            <TableCell sx={headCellSx}>Account</TableCell>
+                                            <TableCell sx={headCellSx}>Type</TableCell>
+                                            <TableCell sx={{ ...headCellSx, minWidth: 200 }}>Caption</TableCell>
+                                            <TableCell sx={{ ...headCellSx, minWidth: 160 }}>Scheduled At</TableCell>
+                                            <TableCell sx={{ ...headCellSx, minWidth: 160 }}>Published At</TableCell>
+                                            <TableCell sx={headCellSx}>Status</TableCell>
+                                            <TableCell sx={{ ...headCellSx, minWidth: 180 }}>Error</TableCell>
+                                            <TableCell sx={{ ...headCellSx, textAlign: 'right' }}>Actions</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {filtered.map((post, idx) => {
+                                            const acct = igAccounts.find(a => a.id === post.accountId);
+                                            const typeInfo = CONTENT_TYPES.find(t => t.value === post.mediaType);
+                                            const isEditing = editingPostId === post.id;
+                                            const canEdit = post.status === 'pending' || post.status === 'scheduled';
+                                            const isPastDue = post.status === 'pending' && new Date(post.scheduledAt) < new Date();
+                                            return (
+                                                <React.Fragment key={post.id}>
+                                                    <TableRow hover sx={{
+                                                        bgcolor: isEditing ? 'rgba(245,133,41,0.05)' : 'transparent',
+                                                        '&:last-child td': { borderBottom: 0 },
+                                                    }}>
+                                                        {/* # */}
+                                                        <TableCell sx={{ ...cellSx, color: 'text.disabled', fontSize: 12 }}>{idx + 1}</TableCell>
+
+                                                        {/* Account */}
+                                                        <TableCell sx={cellSx}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                                                {acct?.profilePictureUrl
+                                                                    ? <Avatar src={acct.profilePictureUrl} sx={{ width: 22, height: 22 }} />
+                                                                    : <Avatar sx={{ width: 22, height: 22, fontSize: 11, background: IG_GRADIENT }}>
+                                                                        {(acct?.username || '?')[0].toUpperCase()}
+                                                                      </Avatar>
+                                                                }
+                                                                <Typography variant="caption" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                                    {acct?.username ? `@${acct.username}` : post.accountId}
+                                                                </Typography>
+                                                            </Box>
+                                                        </TableCell>
+
+                                                        {/* Type */}
+                                                        <TableCell sx={cellSx}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: typeInfo?.color || '#888' }}>
+                                                                {React.cloneElement(typeInfo?.icon || <Photo />, { sx: { fontSize: 16 } })}
+                                                                <Typography variant="caption" sx={{ fontWeight: 600 }}>{typeInfo?.label || post.mediaType}</Typography>
+                                                            </Box>
+                                                        </TableCell>
+
+                                                        {/* Caption */}
+                                                        <TableCell sx={cellSx}>
+                                                            <Tooltip title={post.caption || ''} placement="top-start">
+                                                                <Typography variant="caption" sx={{
+                                                                    display: 'block', maxWidth: 240,
+                                                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                                    color: post.caption ? 'text.primary' : 'text.disabled',
+                                                                }}>
+                                                                    {post.caption || '(no caption)'}
+                                                                </Typography>
+                                                            </Tooltip>
+                                                        </TableCell>
+
+                                                        {/* Scheduled At */}
+                                                        <TableCell sx={cellSx}>
+                                                            <Typography variant="caption" sx={{ color: isPastDue ? '#FF9800' : 'text.secondary', whiteSpace: 'nowrap' }}>
+                                                                {fmtDate(post.scheduledAt)}
+                                                            </Typography>
+                                                            {isPastDue && (
+                                                                <Typography variant="caption" sx={{ display: 'block', color: '#FF9800', fontSize: 10 }}>overdue</Typography>
+                                                            )}
+                                                        </TableCell>
+
+                                                        {/* Published At */}
+                                                        <TableCell sx={cellSx}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                                <Typography variant="caption" sx={{ color: post.publishedAt ? '#4CAF50' : 'text.disabled', whiteSpace: 'nowrap' }}>
+                                                                    {fmtDate(post.publishedAt)}
+                                                                </Typography>
+                                                                {post.publishedMediaId && (
+                                                                    <Tooltip title={`Media ID: ${post.publishedMediaId}`}>
+                                                                        <OpenInNew sx={{ fontSize: 12, color: '#4CAF5088', cursor: 'default' }} />
+                                                                    </Tooltip>
+                                                                )}
+                                                            </Box>
+                                                        </TableCell>
+
+                                                        {/* Status */}
+                                                        <TableCell sx={cellSx}>{statusChip(post.status)}</TableCell>
+
+                                                        {/* Error */}
+                                                        <TableCell sx={cellSx}>
+                                                            {post.error ? (
+                                                                <Tooltip title={post.error} placement="top-start">
+                                                                    <Typography variant="caption" sx={{
+                                                                        display: 'block', maxWidth: 180, color: '#f44336',
+                                                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                                        cursor: 'help',
+                                                                    }}>
+                                                                        {post.error}
+                                                                    </Typography>
+                                                                </Tooltip>
+                                                            ) : (
+                                                                <Typography variant="caption" sx={{ color: 'text.disabled' }}>—</Typography>
+                                                            )}
+                                                        </TableCell>
+
+                                                        {/* Actions */}
+                                                        <TableCell sx={{ ...cellSx, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                                            {canEdit && !isEditing && (
+                                                                <Tooltip title="Edit post">
+                                                                    <IconButton size="small" onClick={() => startEditPost(post)}
+                                                                        sx={{ color: 'text.secondary', '&:hover': { color: '#F58529' } }}>
+                                                                        <EditNote fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                            {isEditing && (
+                                                                <Tooltip title="Cancel edit">
+                                                                    <IconButton size="small" onClick={cancelEdit}
+                                                                        sx={{ color: '#F58529' }}>
+                                                                        <Close fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                            {post.status !== 'publishing' && (
+                                                                <Tooltip title={post.status === 'published' ? 'Remove from records' : 'Delete'}>
+                                                                    <IconButton size="small"
+                                                                        onClick={() => post.status === 'published'
+                                                                            ? setConfirmDeleteId(post.id)
+                                                                            : handleDeleteScheduled(post.id)
+                                                                        }
+                                                                        sx={{ color: 'text.secondary', '&:hover': { color: '#f44336' } }}>
+                                                                        <Delete fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                        </TableCell>
+                                                    </TableRow>
+
+                                                    {/* Inline Edit Row */}
+                                                    {isEditing && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={9} sx={{ p: 0, borderColor: 'rgba(255,255,255,0.06)' }}>
+                                                                <Collapse in={isEditing} timeout="auto" unmountOnExit>
+                                                                    <Box sx={{ p: 2, bgcolor: 'rgba(245,133,41,0.04)', borderTop: '1px solid rgba(245,133,41,0.2)' }}>
+                                                                        <TextField
+                                                                            fullWidth multiline rows={3} size="small"
+                                                                            value={editCaption}
+                                                                            onChange={e => setEditCaption(e.target.value)}
+                                                                            label="Caption" sx={{ mb: 2 }}
+                                                                            helperText={`${editCaption.length}/2,200 characters`}
+                                                                        />
+                                                                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+                                                                            <TextField
+                                                                                type="date" value={editDate}
+                                                                                onChange={e => setEditDate(e.target.value)}
+                                                                                label="Scheduled Date" size="small"
+                                                                                slotProps={{ inputLabel: { shrink: true }, input: { inputProps: { min: new Date().toISOString().split('T')[0] } } }}
+                                                                                sx={{ minWidth: 180 }}
+                                                                            />
+                                                                            <TextField
+                                                                                type="time" value={editTime}
+                                                                                onChange={e => setEditTime(e.target.value)}
+                                                                                label="Scheduled Time" size="small"
+                                                                                slotProps={{ inputLabel: { shrink: true } }}
+                                                                                sx={{ minWidth: 150 }}
+                                                                            />
+                                                                            {editDate && editTime && (
+                                                                                <Chip
+                                                                                    icon={<CalendarMonth sx={{ fontSize: 16 }} />}
+                                                                                    label={new Date(`${editDate}T${editTime}`).toLocaleString()}
+                                                                                    color="warning" variant="outlined"
+                                                                                    sx={{ alignSelf: 'center' }}
+                                                                                />
+                                                                            )}
+                                                                        </Box>
+                                                                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                                                            <Button size="small" variant="outlined" onClick={cancelEdit}
+                                                                                sx={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                                                                                Cancel
+                                                                            </Button>
+                                                                            <Button size="small" variant="contained" onClick={handleSaveEdit}
+                                                                                disabled={savingEdit}
+                                                                                startIcon={savingEdit ? <CircularProgress size={14} /> : <CheckCircle sx={{ fontSize: 16 }} />}
+                                                                                sx={{ background: 'linear-gradient(135deg, #F58529, #FF6B35)' }}>
+                                                                                {savingEdit ? 'Saving...' : 'Save & Sync'}
+                                                                            </Button>
+                                                                        </Box>
+                                                                    </Box>
+                                                                </Collapse>
+                                                            </TableCell>
+                                                        </TableRow>
                                                     )}
-                                                </Box>
-                                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                                    <Button size="small" variant="outlined" onClick={cancelEdit}
-                                                        sx={{ borderColor: 'rgba(255,255,255,0.15)' }}>
-                                                        Cancel
-                                                    </Button>
-                                                    <Button size="small" variant="contained" onClick={handleSaveEdit}
-                                                        disabled={savingEdit}
-                                                        startIcon={savingEdit ? <CircularProgress size={14} /> : <CheckCircle sx={{ fontSize: 16 }} />}
-                                                        sx={{ background: 'linear-gradient(135deg, #F58529, #FF6B35)' }}>
-                                                        {savingEdit ? 'Saving...' : 'Save & Sync'}
-                                                    </Button>
-                                                </Box>
-                                            </Box>
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                        {filtered.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={9} sx={{ textAlign: 'center', py: 4, color: 'text.disabled', borderBottom: 0 }}>
+                                                    No posts with status "{statusFilter}"
+                                                </TableCell>
+                                            </TableRow>
                                         )}
-                                    </Box>
-                                );
-                            })}
-                        </Box>
-                    </CardContent>
-                </Card>
-            )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </CardContent>
+                    </Card>
+                );
+            })()}
 
             {/* API Info */}
             <Card sx={{ mt: 3 }}>
@@ -1738,5 +1924,47 @@ export default function UploadContent({ accounts, showToast }) {
                 </CardContent>
             </Card>
         </Box>
+
+        {/* Confirm delete ALL */}
+        <Dialog open={confirmDeleteAll} onClose={() => setConfirmDeleteAll(false)}
+            PaperProps={{ sx: { bgcolor: '#1e1e2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 2 } }}>
+            <DialogTitle sx={{ fontWeight: 600 }}>Delete all scheduled posts?</DialogTitle>
+            <DialogContent>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    This removes every post from your records (pending, published, and failed) and syncs the empty list to GitHub.
+                </Typography>
+                <Alert severity="warning" sx={{ mt: 2, fontSize: 12 }}>
+                    Posts already <strong>published to Instagram remain live</strong>. Only local records are deleted.
+                    Any post currently <strong>publishing</strong> will not be removed.
+                </Alert>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setConfirmDeleteAll(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
+                <Button variant="contained" color="error" startIcon={<DeleteSweep />} onClick={handleDeleteAll}>
+                    Delete All & Sync
+                </Button>
+            </DialogActions>
+        </Dialog>
+
+        {/* Confirm delete published post */}
+        <Dialog open={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)}
+            PaperProps={{ sx: { bgcolor: '#1e1e2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 2 } }}>
+            <DialogTitle sx={{ fontWeight: 600 }}>Remove published post?</DialogTitle>
+            <DialogContent>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    This will remove the entry from your scheduled posts record and sync the change to GitHub.
+                </Typography>
+                <Alert severity="info" sx={{ mt: 2, fontSize: 12 }}>
+                    The post will <strong>remain live on Instagram</strong> — this only removes it from your local records.
+                </Alert>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+                <Button onClick={() => setConfirmDeleteId(null)} sx={{ color: 'text.secondary' }}>Cancel</Button>
+                <Button variant="contained" color="error" onClick={() => handleDeleteScheduled(confirmDeleteId)}>
+                    Remove Record
+                </Button>
+            </DialogActions>
+        </Dialog>
+        </>
     );
 }
