@@ -98,36 +98,42 @@ async function syncAllDataToGitHub() {
         const gh = keys.github;
         if (!gh?.token || !gh?.repo) return;
 
-        const [posts, rawAccounts] = await Promise.all([
-            readJSON(SCHEDULED_POSTS_FILE) || [],
-            readJSON(ACCOUNTS_FILE) || [],
-        ]);
-
-        // Strip sensitive token fields before committing accounts to a public/private repo
-        const safeAccounts = rawAccounts.map(a => {
-            const copy = { ...a };
-            delete copy.accessToken;
-            return copy;
-        });
-
-        const files = [
-            { path: 'backend/data/scheduled_posts.json', data: posts,        label: 'scheduled posts' },
-            { path: 'backend/data/accounts.json',        data: safeAccounts, label: 'accounts'        },
-        ];
-
-        const results = await Promise.allSettled(
-            files.map(f => pushFileToGitHub(gh, f.path, f.data, `☁️ Sync ${f.label}`))
-        );
-
-        results.forEach((r, i) => {
-            if (r.status === 'fulfilled') console.log(`  ☁️ Synced ${files[i].label} to GitHub`);
-            else console.error(`  ☁️ GitHub sync error (${files[i].label}):`, r.reason?.message);
-        });
+        // Only sync scheduled_posts.json as a plain file.
+        // accounts.json is NEVER pushed as a file — tokens would be wiped on next git pull.
+        // Accounts sync via the encrypted ACCOUNTS_JSON secret instead (syncAccountsSecretToGitHub).
+        const posts = await readJSON(SCHEDULED_POSTS_FILE) || [];
+        await pushFileToGitHub(gh, 'backend/data/scheduled_posts.json', posts, '📅 Sync scheduled posts');
+        console.log('  ☁️ Synced scheduled posts to GitHub');
     } catch (err) {
         console.error('  ☁️ syncAllDataToGitHub error:', err.message);
     }
 }
 
+
+// Remove accounts.json from GitHub if it was mistakenly committed (it contains no tokens anyway).
+// Safe to call repeatedly — silently does nothing if the file doesn't exist on GitHub.
+async function removeAccountsFileFromGitHub() {
+    try {
+        const keys = await readJSON(API_KEYS_FILE) || {};
+        const gh = keys.github;
+        if (!gh?.token || !gh?.repo) return;
+        const repo = gh.repo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+        const branch = gh.branch || 'main';
+        const filePath = 'backend/data/accounts.json';
+        const headers = { Authorization: `token ${gh.token}`, 'Content-Type': 'application/json', 'User-Agent': 'SocialMediaDashboard' };
+
+        const r = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`, { headers });
+        if (!r.ok) return; // file doesn't exist — nothing to do
+
+        const { sha } = await r.json();
+        const res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
+            method: 'DELETE',
+            headers,
+            body: JSON.stringify({ message: '🔒 Remove accounts.json (sensitive — use secret instead)', sha, branch }),
+        });
+        if (res.ok) console.log('  ☁️ Removed accounts.json from GitHub (was mistakenly committed)');
+    } catch { }
+}
 
 async function pullScheduledPostsFromGitHub() {
     try {
@@ -2104,6 +2110,9 @@ initializeData().then(async () => {
             await processScheduledPosts();
         }
     }, 60000);
+
+    // Remove accounts.json from GitHub if it was mistakenly committed
+    removeAccountsFileFromGitHub().catch(() => { });
 
     // Check Instagram token expiry once on startup, then every 24 hours
     autoRefreshInstagramTokens();
